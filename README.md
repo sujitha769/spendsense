@@ -1,50 +1,82 @@
+
 # SpendSense 💰
 
-SpendSense is an AI-powered expense tracking and spending analysis platform built using a microservices architecture. The application allows users to submit transaction messages in natural language, automatically extracts transaction information using AI, stores the transaction securely, and provides spending analytics and behavioral insights.
+SpendSense is an AI-powered expense tracking and spending analysis platform built using a microservices architecture.
+
+The main idea of SpendSense is simple: instead of manually entering transaction details such as amount, merchant, category, payment method, and transaction type, the user can provide a natural-language message. The system uses AI to identify whether the message is related to a financial transaction and, if it is, extracts the required transaction details and stores them in the database.
+
+The stored transaction data is then analyzed to understand spending patterns and user behavior. Based on predefined conditions, the Notification Service can send email alerts to the user.
 
 ## 🚀 Features
 
 - User registration and login
 - JWT-based authentication
-- Secure transaction management
-- AI-powered transaction extraction
-- Automatic transaction classification
-- Natural language transaction processing
-- Service-to-service communication using OpenFeign
-- Service discovery using Eureka
-- Centralized request routing using API Gateway
+- Natural-language transaction input
+- AI-based transaction detection
+- AI-based transaction detail extraction
+- Automatic transaction categorization
+- Transaction storage in MySQL
+- User-specific transaction management
 - Spending analytics
 - Spending behavior analysis
-- Email notification support
-- MySQL database integration
-- Separate databases for different services
+- Condition-based email notifications
+- Microservices architecture
+- Service discovery using Eureka
+- Service-to-service communication using OpenFeign
+- Centralized API routing using Spring Cloud Gateway
+- Gemini API integration
+- Groq API integration
+- Spring Mail integration
 
-## 🏗️ System Architecture
+## 🏗️ Architecture
 
 ```text
                          Client / Postman
-                               |
-                               v
+                                |
+                                v
                        API Gateway :8080
-                               |
-                               v
+                                |
+                                v
                        Eureka Server :8761
-                               |
-          +--------------------+----------------------+
-          |          |         |          |           |
-          v          v         v          v           v
-       User       Transaction  AI      Analytics    Behavior
-      :8083         :8081     :8082      :8084       :8085
-                     |                      |
-                     |                      v
-                     |                  Behavior
-                     |                    :8085
-                     |
-                     v
-                   MySQL
-
-                         Notification Service
-                                :8086
+                                |
+        +-----------------------+-----------------------+
+        |                       |                       |
+        v                       v                       v
+   User Service         Transaction Service        Other Services
+      :8083                    :8081
+                                  |
+                                  | OpenFeign
+                                  v
+                              AI Service
+                                :8082
+                                  |
+                                  v
+                       Check Transaction Message
+                                  |
+                         +--------+--------+
+                         |                 |
+                        NO                YES
+                         |                 |
+                         v                 v
+                      Ignore       Extract Details
+                                           |
+                                           v
+                                  Transaction Database
+                                           |
+                                           v
+                                  Analytics Service
+                                       :8084
+                                           |
+                                           v
+                                   Behavior Service
+                                       :8085
+                                           |
+                                           v
+                                  Notification Service
+                                       :8086
+                                           |
+                                           v
+                                        Email
 ```
 
 ## 🧩 Microservices
@@ -53,91 +85,82 @@ SpendSense is an AI-powered expense tracking and spending analysis platform buil
 |---|---:|---|
 | Eureka Server | 8761 | Service discovery |
 | API Gateway | 8080 | Centralized API routing |
-| User Service | 8083 | User registration, login and JWT authentication |
-| Transaction Service | 8081 | Transaction creation and management |
-| AI Service | 8082 | AI-based transaction extraction |
-| Analytics Service | 8084 | Spending analytics |
+| Transaction Service | 8081 | Transaction processing and storage |
+| AI Service | 8082 | Transaction detection and extraction |
+| User Service | 8083 | User registration, login and authentication |
+| Analytics Service | 8084 | Spending analysis |
 | Behavior Service | 8085 | Spending behavior analysis |
-| Notification Service | 8086 | Email notifications |
+| Notification Service | 8086 | Condition-based email notifications |
 
-## 🛠️ Technology Stack
+## 🔄 How SpendSense Works
 
-### Programming Languages
-- Java
-- JavaScript
+### 1. User Sends a Message
 
-### Backend
-- Spring Boot
-- Spring Data JPA
-- Spring Security
-- REST APIs
-- Microservices
-
-### Spring Cloud
-- Spring Cloud Gateway
-- Eureka Server
-- OpenFeign
-- Spring Cloud LoadBalancer
-
-### Database
-- MySQL
-
-### Authentication
-- JWT
-- Password Encoding
-
-### AI Integration
-- Gemini API
-- Groq API
-
-### Email
-- Spring Mail
-
-### Development Tools
-- Maven
-- Docker
-- Postman
-- GitHub
-- IntelliJ IDEA
-- VS Code
-
-## 🔄 Main Transaction Flow
-
-A user can send a natural language message instead of manually entering every transaction field.
+The user provides a transaction message in natural language.
 
 Example:
 
-> Paid 500 to Swiggy using UPI
-
-The request follows this flow:
-
 ```text
-Client
-  |
-  v
-API Gateway
-  |
-  v
-Transaction Service
-  |
-  | OpenFeign
-  v
-AI Service
-  |
-  | Gemini / Groq
-  v
-Transaction Extraction
-  |
-  v
-Transaction Service
-  |
-  v
-MySQL
+Paid 500 to Swiggy using UPI
 ```
 
-The AI service extracts information from the transaction message.
+The message is sent to the Transaction Service.
 
-Example response:
+### 2. AI Checks Whether It Is a Transaction
+
+The Transaction Service sends the message to the AI Service.
+
+The AI Service determines whether the message is related to a financial transaction.
+
+Example:
+
+```text
+Input:
+Paid 500 to Swiggy using UPI
+
+Result:
+Transaction related → YES
+```
+
+If the message is not related to a transaction, it is not stored.
+
+Example:
+
+```text
+Input:
+What is the weather today?
+
+Result:
+Transaction related → NO
+```
+
+### 3. AI Extracts Transaction Details
+
+If the message is identified as a transaction, the AI Service extracts the available transaction information.
+
+Example:
+
+```text
+Message:
+Paid 500 to Swiggy using UPI
+
+Extracted Information:
+
+Amount         → 500
+Type           → EXPENSE
+Merchant       → Swiggy
+Category       → FOOD
+Payment Method → UPI
+Transaction Date → Available when provided
+```
+
+### 4. Transaction is Stored
+
+The extracted information is returned to the Transaction Service.
+
+The Transaction Service stores the transaction in MySQL.
+
+Example:
 
 ```json
 {
@@ -146,16 +169,18 @@ Example response:
   "merchant": "Swiggy",
   "category": "FOOD",
   "paymentMethod": "UPI",
-  "transactionDate": null,
-  "isTransaction": true
+  "transactionDate": "2026-09-10T21:03:02",
+  "rawMessage": "Paid 500 to Swiggy using UPI"
 }
 ```
 
-The Transaction Service then converts the extracted information into a transaction record and stores it in MySQL.
+The original message is also stored as `rawMessage`.
 
 ## 👤 User Service
 
-The User Service is responsible for:
+The User Service manages user-related functionality.
+
+Responsibilities:
 
 - User registration
 - User login
@@ -182,44 +207,53 @@ Client
 Protected APIs
 ```
 
+The authenticated user's ID is used to associate transactions with the correct user.
+
 ## 💳 Transaction Service
 
-The Transaction Service manages user transactions.
+The Transaction Service is responsible for transaction processing and storage.
 
-Main responsibilities:
+Responsibilities:
 
-- Create transactions
+- Receive transaction messages
+- Communicate with AI Service
+- Determine whether the message represents a transaction
+- Store valid transactions
 - Retrieve transactions
 - Retrieve user-specific transactions
 - Update transactions
 - Delete transactions
-- Communicate with AI Service
-- Store transaction information
 
-Example transaction data:
+Main transaction flow:
 
-```json
-{
-  "amount": 500,
-  "type": "EXPENSE",
-  "merchant": "Swiggy",
-  "category": "FOOD",
-  "paymentMethod": "UPI",
-  "transactionDate": "2026-09-10T21:03:02",
-  "rawMessage": "Paid 500 to Swiggy using UPI"
-}
+```text
+Client
+   |
+   v
+Transaction Service
+   |
+   | OpenFeign
+   v
+AI Service
+   |
+   | Extract transaction details
+   v
+Transaction Service
+   |
+   v
+MySQL
 ```
 
 ## 🤖 AI Service
 
-The AI Service processes natural language transaction messages.
+The AI Service is responsible for understanding natural-language messages.
 
 It uses:
 
 - Gemini API
 - Groq API
 
-The service determines whether the provided message represents a transaction and extracts important transaction attributes.
+The AI Service determines whether a message is transaction-related and extracts transaction information when applicable.
 
 The extracted attributes include:
 
@@ -237,21 +271,22 @@ Input:
 Paid 500 to Swiggy using UPI
 
 Output:
-Amount       → 500
-Type         → EXPENSE
-Merchant     → Swiggy
-Category     → FOOD
-Payment      → UPI
+
+Amount         → 500
+Type           → EXPENSE
+Merchant       → Swiggy
+Category       → FOOD
+Payment Method → UPI
 ```
 
 ## 📊 Analytics Service
 
-The Analytics Service retrieves the authenticated user's transactions and calculates spending-related metrics.
+The Analytics Service analyzes the user's stored transactions.
 
-It provides information such as:
+It calculates spending-related information such as:
 
 - Total expenses
-- Total transactions
+- Total number of transactions
 - Average expense
 - Category-wise expenses
 - Top spending category
@@ -259,25 +294,25 @@ It provides information such as:
 
 Example:
 
-```json
-{
-  "totalExpense": 4500,
-  "totalTransactions": 8,
-  "averageExpense": 562.50,
-  "topCategory": "FOOD"
-}
+```text
+Total Expenses     → ₹4,500
+Total Transactions → 8
+Average Expense    → ₹562.50
+Top Category       → FOOD
 ```
+
+The Analytics Service retrieves transaction data from the Transaction Service using OpenFeign.
 
 ## 🧠 Behavior Service
 
-The Behavior Service uses analytics information to identify spending patterns.
+The Behavior Service uses the analytics data to understand the user's spending behavior.
 
-It can determine:
+It identifies information such as:
 
 - Dominant spending category
-- Percentage of spending in a category
+- Percentage of spending in the dominant category
 - Spending frequency
-- Spending concentration
+- Spending pattern
 - Spending insights
 
 Example:
@@ -291,31 +326,41 @@ Example:
 }
 ```
 
+The Behavior Service communicates with the Analytics Service using OpenFeign.
+
 ## 📧 Notification Service
 
-The Notification Service is responsible for sending email notifications based on spending behavior.
+The Notification Service is responsible for sending email notifications when predefined spending conditions are reached.
 
-It communicates with:
+The flow is:
 
 ```text
-Notification Service
-       |
-       +----> Behavior Service
-       |
-       +----> User Service
+Analytics Service
        |
        v
-   Spring Mail
+Behavior Service
        |
        v
-     Email
+Check Condition
+       |
+   +---+---+
+   |       |
+  NO      YES
+   |       |
+   v       v
+ No Mail  Send Email
 ```
 
-Email credentials are configured using environment variables rather than storing them directly in source code.
+The Notification Service communicates with:
 
-## 🔗 Microservice Communication
+- Behavior Service
+- User Service
 
-SpendSense uses OpenFeign for communication between microservices.
+Email delivery is implemented using Spring Mail.
+
+## 🔗 Service-to-Service Communication
+
+SpendSense currently uses synchronous REST-based communication between microservices through OpenFeign.
 
 ```text
 Transaction Service
@@ -340,24 +385,24 @@ Notification Service
         +----> User Service
 ```
 
-### Eureka Service Discovery
+## 🔎 Eureka Service Discovery
 
-Eureka acts as the service registry.
+Eureka Server acts as the service registry.
 
-Instead of manually storing the location of every service, services register themselves with Eureka.
+Each microservice registers itself with Eureka so that other services can discover it.
 
 ```text
-                 Eureka Server
-                    :8761
-                       |
-        +--------------+--------------+
-        |              |              |
-        v              v              v
- Transaction       AI Service     User Service
-   Service
+                    Eureka Server
+                       :8761
+                          |
+        +-----------------+-----------------+
+        |                 |                 |
+        v                 v                 v
+ Transaction          AI Service       User Service
+  Service
 ```
 
-This allows services to discover each other dynamically.
+This avoids manually hardcoding service locations between microservices.
 
 ## 🌐 API Gateway
 
@@ -388,7 +433,7 @@ Example:
 POST http://localhost:8080/api/transactions
 ```
 
-The Gateway forwards the request to the Transaction Service.
+The Gateway routes the request to the appropriate service.
 
 ## 🗄️ Database Architecture
 
@@ -407,7 +452,7 @@ Transaction Service
 spendsense_transaction
 ```
 
-This keeps service-specific data separated and follows the microservices principle of independent data ownership.
+The User Service manages user-related data, while the Transaction Service manages transaction-related data.
 
 ## 📁 Project Structure
 
@@ -415,40 +460,32 @@ This keeps service-specific data separated and follows the microservices princip
 SpendSense/
 │
 ├── eureka-server/
-│   └── src/
 │
 ├── api-gateway/
-│   └── src/
 │
 ├── user-service/
-│   └── src/
 │
 ├── transaction-service/
-│   └── src/
 │
 ├── ai-service/
-│   └── src/
 │
 ├── analytics-service/
-│   └── src/
 │
 ├── behavior-service/
-│   └── src/
 │
 ├── notification-service/
-│   └── src/
 │
 ├── .gitignore
 └── README.md
 ```
 
-Each service is maintained as an independent Spring Boot application.
+Each service is an independent Spring Boot application.
 
 ## 🧪 API Testing
 
-Postman is used to test the backend APIs.
+The backend APIs are currently tested using Postman.
 
-Example:
+Example transaction request:
 
 ```http
 POST http://localhost:8080/api/transactions
@@ -462,45 +499,11 @@ Request body:
 }
 ```
 
-The request is processed by the Transaction Service, which communicates with the AI Service to extract the transaction information.
-
-## ▶️ Running the Project
-
-### Start Eureka Server
-
-```bash
-cd eureka-server
-.\mvnw.cmd spring-boot:run
-```
-
-Eureka Dashboard:
-
-```text
-http://localhost:8761
-```
-
-### Start the Services
-
-Start the following Spring Boot applications:
-
-```text
-Eureka Server         → 8761
-API Gateway           → 8080
-Transaction Service   → 8081
-AI Service            → 8082
-User Service          → 8083
-Analytics Service     → 8084
-Behavior Service      → 8085
-Notification Service  → 8086
-```
-
-After starting the services, they register with Eureka.
+The request is processed by the Transaction Service, which communicates with the AI Service to determine whether the message represents a transaction and, if valid, extracts the transaction details.
 
 ## 🔐 Environment Variables
 
-Sensitive credentials should be provided through environment variables.
-
-Example:
+Sensitive credentials are provided through environment variables.
 
 ```text
 GEMINI_API_KEY
@@ -509,25 +512,60 @@ MAIL_USERNAME
 MAIL_PASSWORD
 ```
 
-These values should not be committed to GitHub.
+Sensitive credentials should not be committed to GitHub.
 
-## 🔮 Future Improvements
+## 🚧 Current Implementation
 
-Planned improvements include:
+The current version of SpendSense uses synchronous API-based communication between services.
 
-- Apache Kafka for event-driven communication
-- Asynchronous transaction processing
-- Automatic transaction detection from financial notifications
+Transaction messages are currently provided manually through Postman for testing.
+
+The current workflow is:
+
+```text
+User / Postman
+      |
+      v
+Transaction Service
+      |
+      v
+AI Service
+      |
+      v
+Transaction Database
+      |
+      v
+Analytics Service
+      |
+      v
+Behavior Service
+      |
+      v
+Notification Service
+      |
+      v
+Email
+```
+
+The system currently processes transaction messages manually. Automatic reading of real financial notifications has not yet been implemented.
+
+## 🔮 Future Enhancements
+
+The current implementation can be extended with:
+
+- Apache Kafka for asynchronous event-driven communication
+- Automatic reading and processing of financial notifications
+- Event-driven transaction processing
+- Reduced dependency on synchronous service-to-service communication
 - Advanced spending insights
-- Improved notification intelligence
-- Docker Compose deployment
-- Production-ready configuration
-- Enhanced exception handling
-- More advanced analytics and reports
+- More intelligent notification rules
+- Frontend application
+- Production deployment
+- Additional analytics and reporting
 
-## 📌 Project Goal
+## 🎯 Project Objective
 
-The main goal of SpendSense is to reduce the manual effort involved in tracking expenses.
+The objective of SpendSense is to build an intelligent expense tracking system that reduces manual transaction entry.
 
 Instead of manually entering:
 
@@ -540,15 +578,42 @@ Transaction Type
 Date
 ```
 
-the user can provide a simple natural-language message:
+the user can simply provide:
 
 ```text
 Paid 500 to Swiggy using UPI
 ```
 
-The AI service extracts the required information and the backend stores it as a structured transaction.
+SpendSense then:
 
-## 👩‍💻 Project Information
+```text
+Natural Language Message
+          |
+          v
+     AI Detection
+          |
+          v
+ Transaction Extraction
+          |
+          v
+   Store in Database
+          |
+          v
+ Spending Analytics
+          |
+          v
+ Behavior Analysis
+          |
+          v
+ Condition Evaluation
+          |
+          v
+ Email Notification
+```
+
+The current backend implementation establishes this workflow using Java, Spring Boot, Spring Cloud, MySQL, JWT, OpenFeign, Eureka, Gemini, Groq and Spring Mail.
+
+## 📌 Project Information
 
 **Project Name:** SpendSense
 
@@ -566,12 +631,13 @@ The AI service extracts the required information and the backend stores it as a 
 
 **Service Discovery:** Eureka
 
-**Gateway:** Spring Cloud Gateway
+**API Gateway:** Spring Cloud Gateway
 
-**AI:** Gemini API + Groq API
+**AI Integration:** Gemini API + Groq API
 
 **Email:** Spring Mail
 
-**Testing:** Postman
+**API Testing:** Postman
 
 **Version Control:** GitHub
+````
